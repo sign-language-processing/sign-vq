@@ -22,6 +22,17 @@ sbatch scripts/zip_dataset.sh "$DATA_DIR/sign-mt-poses" "$DATA_DIR/normalized.zi
 sbatch scripts/train_model.sh "$DATA_DIR/normalized.zip"
 ```
 
+## Training Output
+
+In Weights & Biases, we can see the training progress.
+In validation, we generate a video from the compressed poses (right) and compare it to the original video (left).
+
+(Current examples are from a model currently training, in its 3rd epoch)
+
+| 0                                       | 1                                       | 2                                       | 3                                       | 4                                       |
+|-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|
+| ![](assets/validation/validation_0.gif) | ![](assets/validation/validation_1.gif) | ![](assets/validation/validation_2.gif) | ![](assets/validation/validation_3.gif) | ![](assets/validation/validation_4.gif) |
+
 ## Background
 
 Vector Quantization has been successfully used by many for highly compressing images and audio.
