@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    files: ^sign_vq/
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+      - id: pytest
+        name: pytest
+        entry: pytest sign_vq
+        language: system
+        types: [python]
+
