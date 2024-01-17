@@ -26,8 +26,7 @@ sbatch scripts/train_model.sh "$DATA_DIR/normalized.zip"
 
 In Weights & Biases, we can see the training progress.
 In validation, we generate a video from the compressed poses (right) and compare it to the original video (left).
-
-(Current examples are from a model currently training, in its 3rd epoch)
+(This is the output using 4 codebooks of size 1024.)
 
 | 0                                       | 1                                       | 2                                       | 3                                       | 4                                       |
 |-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|
