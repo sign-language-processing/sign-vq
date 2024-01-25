@@ -64,6 +64,11 @@ class PoseFSQAutoEncoder(nn.Module):
                  num_layers=6):
         super().__init__()
 
+        # Store a dictionary of all arguments passed to the constructor
+        self.args_dict = locals()
+        del self.args_dict['self']
+        del self.args_dict['__class__']
+
         levels = estimate_levels(codebook_size)
 
         # Calculate the exact number of codes based on the levels
@@ -96,6 +101,11 @@ class PoseFSQAutoEncoder(nn.Module):
             nn.Unflatten(dim=2, unflattened_size=pose_dims)
         )
 
+    def quantize(self, x: Tensor):
+        x = self.encoder(x)
+        _, indices = self.fsq(x)
+        return indices
+
     def forward(self, batch: MaskedTensor):
         x = batch.tensor
         x = self.encoder(x)
@@ -107,7 +117,8 @@ class PoseFSQAutoEncoder(nn.Module):
 def masked_loss(loss_type: str,
                 tensor1: torch.Tensor,
                 tensor2: torch.Tensor,
-                confidence: torch.Tensor):
+                confidence: torch.Tensor,
+                loss_weights: torch.Tensor = None):
     difference = tensor1 - tensor2
 
     if loss_type == 'l1':
@@ -117,15 +128,21 @@ def masked_loss(loss_type: str,
     else:
         raise NotImplementedError()
 
-    return (error * confidence).mean()
+    masked_error = error * confidence  # confidence is 0 for masked values
+
+    if loss_weights is not None:
+        masked_error = masked_error * loss_weights
+
+    return masked_error.mean()
 
 
 # pylint: disable=abstract-method,too-many-ancestors,arguments-differ
 class AutoEncoderLightningWrapper(pl.LightningModule):
-    def __init__(self, model: nn.Module, learning_rate: float = 3e-4):
+    def __init__(self, model: nn.Module, learning_rate: float = 3e-4, loss_weights: torch.Tensor = None):
         super().__init__()
         self.model = model
         self.learning_rate = learning_rate
+        self.loss_weights = loss_weights
 
     def forward(self, batch):
         return self.model(batch)
@@ -138,7 +155,11 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
 
         x_hat, indices = self(x)
 
-        loss = masked_loss('l2', x_hat, x.tensor, x.mask)
+        if self.loss_weights is not None and self.loss_weights.device != self.device:
+            self.loss_weights = self.loss_weights.to(self.device)
+
+        loss = masked_loss('l2', tensor1=x_hat, tensor2=x.tensor,
+                           confidence=x.mask, loss_weights=self.loss_weights)
         code_utilization = indices.unique().numel() / self.model.num_codes * 100
 
         phase = "train" if self.training else "validation"

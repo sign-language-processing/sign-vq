@@ -12,13 +12,14 @@ class ModelTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pose_dim = (2, 2)
+        self.pose_dim = (2, 3)
         self.seq_length = 5
 
     def model_setup(self):
         model = PoseFSQAutoEncoder(codebook_size=2 ** 4, num_codebooks=2, pose_dims=self.pose_dim,
                                    hidden_dim=16, nhead=2, num_layers=2, dim_feedforward=32)
-        model = AutoEncoderLightningWrapper(model)
+        loss_weights = torch.ones((self.pose_dim[0], 1), dtype=torch.float)
+        model = AutoEncoderLightningWrapper(model, loss_weights=loss_weights)
         model.log = MagicMock(return_value=True)
         return model
 
