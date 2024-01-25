@@ -32,6 +32,13 @@ In validation, we generate a video from the compressed poses (right) and compare
 |-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|-----------------------------------------|
 | ![](assets/validation/validation_0.gif) | ![](assets/validation/validation_1.gif) | ![](assets/validation/validation_2.gif) | ![](assets/validation/validation_3.gif) | ![](assets/validation/validation_4.gif) |
 
+## Inference
+
+To quantize a pose file, directory of poses, or Zip file of poses, use the `inference` command.
+```bash
+poses_to_codes --data="DIRECTORY" --output="output.csv"
+```
+
 ## Background
 
 Vector Quantization has been successfully used by many for highly compressing images and audio.

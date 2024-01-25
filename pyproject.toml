@@ -53,3 +53,6 @@ packages = [
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = ["sign_vq"]
+
+[project.scripts]
+poses_to_codes = "sign_vq.poses_to_codes:main"
