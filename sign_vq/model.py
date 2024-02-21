@@ -163,6 +163,8 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
         code_utilization = indices.unique().numel() / self.model.num_codes * 100
 
         phase = "train" if self.training else "validation"
+        # pylint: disable=fixme
+        # TODO: code_utilization is probably not correct since it overlaps codes from the different codebooks.
         self.log(f"{phase}_code_utilization", code_utilization, batch_size=1)
         self.log(f"{phase}_loss", loss, batch_size=batch_size)
 

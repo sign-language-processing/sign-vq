@@ -53,6 +53,9 @@ packages = [
     "sign_vq.data",
 ]
 
+[tool.setuptools.package-data]
+sign_vq = ["**/*.json"]
+
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = ["sign_vq"]

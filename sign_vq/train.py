@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--steps', type=int, default=int(1e6), help='Number of training iterations')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
-    parser.add_argument('--loss-hand-weight', type=int, default=5, help='Weight for hand reconstruction loss')
+    parser.add_argument('--loss-hand-weight', type=int, default=10, help='Weight for hand reconstruction loss')
     parser.add_argument('--codebook-size',
                         choices=[2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14, 2 ** 16], default=2 ** 10,
                         help='Estimated number of codes in the VQ model')
