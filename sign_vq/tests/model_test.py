@@ -47,6 +47,15 @@ class ModelTestCase(unittest.TestCase):
         self.assertNotEqual(0, float(loss))
         self.assertTrue(torch.isfinite(loss))
 
+    def test_indices_with_multiple_codebooks(self):
+        model = self.model_setup()
+        pose = MaskedTensor(torch.full((4, 3, *self.pose_dim), fill_value=2, dtype=torch.float))
+        _, indices = model(pose)
+        # 4 items in the batch
+        # 3 frames
+        # 2 codebooks
+        self.assertEqual((4, 3, 2), indices.shape)
+
 
 if __name__ == "__main__":
     unittest.main()

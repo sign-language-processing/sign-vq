@@ -58,28 +58,30 @@ def load_model(model_name: str):
     with open(args_path, 'r', encoding="utf-8") as f:
         model_args = json.load(f)
 
-    model_state = torch.load(model_path)["state_dict"]
+    map_location = None if torch.cuda.is_available() else torch.device('cpu')
+    model_state = torch.load(model_path, map_location=map_location)["state_dict"]
     model_state = {k.replace("model.", ""): v
                    for k, v in model_state.items()
                    if k.startswith("model.")}
     model = PoseFSQAutoEncoder(**model_args)
     model.load_state_dict(model_state)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    model.eval()
+
     return model
 
 
 def run_inference(model: PoseFSQAutoEncoder, poses: Iterable[tuple[str, Pose]], output_path: Path):
     print("Running inference...")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-
     with open(output_path, 'w', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["file", "fps", "length", "codes"])
 
         for file, pose in tqdm(poses):
-            tensor = torch.tensor(pose.body.data.filled(0), dtype=torch.float32, device=device)
+            tensor = torch.tensor(pose.body.data.filled(0), dtype=torch.float32, device=model.device)
             # remove person dimension
             tensor = tensor.squeeze(1)
             # add batch dimension
@@ -101,7 +103,8 @@ def main():
     model = load_model(args.model)
     poses = load_poses(Path(args.data))
 
-    run_inference(model, poses, Path(args.output))
+    with torch.no_grad():
+        run_inference(model, poses, Path(args.output))
 
 
 if __name__ == "__main__":

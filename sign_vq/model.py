@@ -3,32 +3,31 @@ import math
 from itertools import islice
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import wandb
-from torch import Tensor, nn
 from pose_format.torch.masked import MaskedTensor
+from torch import Tensor, nn
 from vector_quantize_pytorch import FSQ
-import pytorch_lightning as pl
 
 from sign_vq.utils import draw_original_and_predicted_pose
 
 
 def estimate_levels(codebook_size: int):
     # Codebook levels based on https://arxiv.org/pdf/2309.15505.pdf Section 4.1
-    if codebook_size == 2 ** 4:
-        return [4, 4]  # Except for this one, used for tests
-    if codebook_size == 2 ** 8:
-        return [8, 6, 5]
-    if codebook_size == 2 ** 10:
-        return [8, 5, 5, 5]
-    if codebook_size == 2 ** 12:
-        return [7, 5, 5, 5, 5]
-    if codebook_size == 2 ** 14:
-        return [8, 8, 8, 6, 5]
-    if codebook_size == 2 ** 16:
-        return [8, 8, 8, 5, 5, 5]
+    levels = {
+        2 ** 4: [4, 4],  # Except for this one, used for tests
+        2 ** 8: [8, 6, 5],
+        2 ** 10: [8, 5, 5, 5],
+        2 ** 11: [8, 7, 6, 6],  # Not mentioned in the paper
+        2 ** 12: [7, 5, 5, 5, 5],
+        2 ** 14: [8, 8, 8, 6, 5],
+        2 ** 16: [8, 8, 8, 5, 5, 5]
+    }
+    if codebook_size in levels:
+        return levels[codebook_size]
 
-    raise ValueError("Codebook size not supported. Supported sizes are 2^4, 2^8, 2^10, 2^12, 2^14, 2^16")
+    raise ValueError("Codebook size not supported. Supported sizes are 2^4, 2^8, 2^10, 2^11, 2^12, 2^14, 2^16")
 
 
 class PositionalEncoding(nn.Module):
@@ -73,6 +72,7 @@ class PoseFSQAutoEncoder(nn.Module):
 
         # Calculate the exact number of codes based on the levels
         self.num_codes = math.prod(levels)
+        self.num_codebooks = num_codebooks
 
         self.encoder = nn.Sequential(
             nn.Flatten(start_dim=2),
@@ -101,10 +101,22 @@ class PoseFSQAutoEncoder(nn.Module):
             nn.Unflatten(dim=2, unflattened_size=pose_dims)
         )
 
+    def __getattr__(self, item):
+        if item == "device":
+            return next(self.parameters()).device
+        return super().__getattr__(item)
+
     def quantize(self, x: Tensor):
         x = self.encoder(x)
         _, indices = self.fsq(x)
         return indices
+
+    def unquantize(self, indices: Tensor):
+        # (batch, codes) or (batch, codes, codebooks)
+        indices = indices.view(len(indices), -1, self.num_codebooks)
+        x = self.fsq.indices_to_codes(indices)
+        x = self.decoder(x)
+        return x
 
     def forward(self, batch: MaskedTensor):
         x = batch.tensor

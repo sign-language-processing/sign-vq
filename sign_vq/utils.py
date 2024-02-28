@@ -1,22 +1,27 @@
+from typing import Union
+
 import cv2
 import numpy as np
 import torch
 from pose_format import Pose
-from pose_format.torch.masked import MaskedTensor
 from pose_format.pose_visualizer import PoseVisualizer
+from pose_format.torch.masked import MaskedTensor
 from torch import Tensor
 
 from sign_vq.data.normalize import load_pose_header, unnormalize_mean_std, unshift_hand
 
 
-def draw_pose(pose_data: MaskedTensor):
+def pose_from_data(pose_data: Union[MaskedTensor, Tensor]):
     from pose_format.numpy import NumPyPoseBody
+
+    if isinstance(pose_data, Tensor):
+        pose_data = MaskedTensor(pose_data)
 
     # Add person dimension
     pose_data.tensor = pose_data.tensor.unsqueeze(1)
     pose_data.mask = pose_data.mask.unsqueeze(1)
 
-    np_data = pose_data.tensor.numpy() if isinstance(pose_data, MaskedTensor) else pose_data.numpy()
+    np_data = pose_data.tensor.numpy()
     np_confidence = pose_data.mask.numpy().astype(np.float32).max(-1)
     np_body = NumPyPoseBody(fps=25, data=np_data, confidence=np_confidence)
 
@@ -31,6 +36,12 @@ def draw_pose(pose_data: MaskedTensor):
     shift_vec = np.full(shape=(pose.body.data.shape[-1]), fill_value=shift, dtype=np.float32)
     pose.body.data = (pose.body.data + shift_vec) * new_width
     pose.header.dimensions.height = pose.header.dimensions.width = int(new_width * shift * 2)
+
+    return pose
+
+
+def draw_pose(pose_data: MaskedTensor):
+    pose = pose_from_data(pose_data)
 
     # Draw pose
     visualizer = PoseVisualizer(pose)

@@ -4,11 +4,11 @@ import os
 import random
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from pose_format.torch.masked.collator import zero_pad_collator
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
 
 from sign_vq.data.normalize import load_pose_header
 from sign_vq.dataset import ZipPoseDataset, DirectoryPoseDataset
@@ -22,13 +22,13 @@ def parse_args():
     parser.add_argument('--data-path', type=str, help='Path to training dataset')
     parser.add_argument('--wandb-dir', type=str, help='Path to wandb directory')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
-    parser.add_argument('--steps', type=int, default=int(1e6), help='Number of training iterations')
+    parser.add_argument('--steps', type=int, default=int(3e6), help='Number of training iterations')
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
     parser.add_argument('--loss-hand-weight', type=int, default=10, help='Weight for hand reconstruction loss')
     parser.add_argument('--codebook-size',
                         choices=[2 ** 8, 2 ** 10, 2 ** 12, 2 ** 14, 2 ** 16], default=2 ** 10,
                         help='Estimated number of codes in the VQ model')
-    parser.add_argument('--seed', type=int, default=None, help='Random seed')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--device', type=str,
                         default='gpu' if torch.cuda.is_available() else 'cpu',
                         help='Device to use for training')
@@ -50,14 +50,18 @@ def create_loss_weights(hand_weight=1):
 
     total_points = header.total_points()
     hand_points = 21
+    affected_points = 2 * (hand_points + 1)  # wrist + hand_points
     # We want the loss to be the same scale across different runs, so we change the default weight accordingly
-    default_weight = total_points / ((total_points - 2 * hand_points) + (2 * hand_points * hand_weight))
+    default_weight = total_points / ((total_points - affected_points) + (affected_points * hand_weight))
 
     weights = torch.full((total_points, 1), fill_value=default_weight, dtype=torch.float32)
     for hand in ["RIGHT", "LEFT"]:
         # pylint: disable=protected-access
         wrist_index = header._get_point_index(f"{hand}_HAND_LANDMARKS", "WRIST")
         weights[wrist_index: wrist_index + hand_points, :] = hand_weight
+        # pylint: disable=protected-access
+        body_wrist_index = header._get_point_index("POSE_LANDMARKS", f"{hand}_WRIST")
+        weights[body_wrist_index, :] = hand_weight
     return weights
 
 

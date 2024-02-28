@@ -62,3 +62,4 @@ testpaths = ["sign_vq"]
 
 [project.scripts]
 poses_to_codes = "sign_vq.poses_to_codes:main"
+codes_to_poses = "sign_vq.codes_to_poses:main"
