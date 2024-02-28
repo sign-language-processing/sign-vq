@@ -13,11 +13,5 @@ set -x # echo commands
 module load anaconda3
 source activate vq
 
-DATASET_ZIP="/scratch/$(whoami)/poses/normalized.zip"
-
-cd ..
-
-[ ! -f "$DATASET_ZIP" ] && \
-python -m sign_vq.data.zip_dataset \
-  --dir="/scratch/$(whoami)/poses/sign-mt-poses" \
-  --out="$DATASET_ZIP"
+[ ! -f "$2" ] && \
+python -m sign_vq.data.zip_dataset --dir="$1" --out="$2"

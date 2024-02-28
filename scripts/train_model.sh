@@ -16,13 +16,6 @@ set -x # echo commands
 module load anaconda3
 source activate vq
 
-DATASET_PATH="/scratch/$(whoami)/poses/normalized.zip"
 
-cd ..
-srun python -m sign_vq.train --data-path="$DATASET_PATH" --wandb-dir="/scratch/$(whoami)/wandb/sign-vq/"
-
-
-# conda activate vq
-# cd sign-language/sign-vq/
-# python -m sign_vq.train --data-zip="$DATASET_PATH"
+srun python -m sign_vq.train --data-path="$1" --wandb-dir="/scratch/$(whoami)/wandb/sign-vq/"
 
