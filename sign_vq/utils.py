@@ -21,6 +21,9 @@ def pose_from_data(pose_data: Union[MaskedTensor, Tensor]):
     pose_data.tensor = pose_data.tensor.unsqueeze(1)
     pose_data.mask = pose_data.mask.unsqueeze(1)
 
+    if pose_data.dtype != torch.float32:
+        pose_data.tensor = pose_data.tensor.to(torch.float32)
+
     np_data = pose_data.tensor.numpy()
     np_confidence = pose_data.mask.numpy().astype(np.float32).max(-1)
     np_body = NumPyPoseBody(fps=25, data=np_data, confidence=np_confidence)

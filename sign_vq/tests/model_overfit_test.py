@@ -47,7 +47,7 @@ class ModelOverfitTestCase(unittest.TestCase):
 
         model = self.model_setup()
 
-        optimizer = model.configure_optimizers()
+        optimizer = model.configure_optimizers()["optimizer"]
 
         model.train()
         torch.set_grad_enabled(True)

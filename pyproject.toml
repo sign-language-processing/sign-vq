@@ -11,8 +11,6 @@ dependencies = [
     "tqdm",
     "vector-quantize-pytorch",
     "pytorch-lightning",
-    # used to normalize the data
-    "mediapipe",
     # for inference using a huggingface hosted model
     "huggingface-hub",
 ]
@@ -28,6 +26,7 @@ dev = [
     "imageio",
     # to support a huggingface dataset, not recommended
     "datasets",
+    "psutil", # To log used memory
 ]
 
 [tool.yapf]

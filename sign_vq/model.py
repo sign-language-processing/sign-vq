@@ -16,10 +16,11 @@ from sign_vq.utils import draw_original_and_predicted_pose
 def estimate_levels(codebook_size: int):
     # Codebook levels based on https://arxiv.org/pdf/2309.15505.pdf Section 4.1
     levels = {
-        2 ** 4: [4, 4],  # Except for this one, used for tests
+        2 ** 4: [4, 4],  # Not mentioned in the paper, used for tests
         2 ** 8: [8, 6, 5],
+        2 ** 9: [4, 5, 5, 5],  # Not mentioned in the paper
         2 ** 10: [8, 5, 5, 5],
-        2 ** 11: [8, 7, 6, 6],  # Not mentioned in the paper
+        2 ** 11: [4, 4, 5, 5, 5],  # Not mentioned in the paper
         2 ** 12: [7, 5, 5, 5, 5],
         2 ** 14: [8, 8, 8, 6, 5],
         2 ** 16: [8, 8, 8, 5, 5, 5]
@@ -150,17 +151,55 @@ def masked_loss(loss_type: str,
 
 # pylint: disable=abstract-method,too-many-ancestors,arguments-differ
 class AutoEncoderLightningWrapper(pl.LightningModule):
-    def __init__(self, model: nn.Module, learning_rate: float = 3e-4, loss_weights: torch.Tensor = None):
+    def __init__(self, model: PoseFSQAutoEncoder,
+                 learning_rate: float = 3e-4,
+                 warmup_steps: int = 10000,  # For some reason, this is only 400 steps
+                 loss_weights: torch.Tensor = None):
         super().__init__()
         self.model = model
         self.learning_rate = learning_rate
         self.loss_weights = loss_weights
+        self.warmup_steps = warmup_steps
 
     def forward(self, batch):
         return self.model(batch)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), self.learning_rate)
+        # Optimizer taken from https://arxiv.org/pdf/2307.09288.pdf
+        optimizer = torch.optim.AdamW(self.parameters(),
+                                      lr=self.learning_rate,
+                                      betas=(0.9, 0.95),
+                                      eps=1e-5,
+                                      weight_decay=0.1)
+
+        def warm_decay(step):
+            if step < self.warmup_steps:
+                return min(step / self.warmup_steps, 1)
+
+            # Don't go below a tenth of the learning rate
+            return max(0.1, self.warmup_steps ** 0.5 * step ** -0.5)
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, warm_decay)
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step",  # runs per batch rather than per epoch
+                "frequency": 1,
+                "monitor": "train_loss",
+                "name": "learning_rate"  # used in LearningRateMonitor
+            }
+        }
+
+    def get_codebook_util(self, indices: Tensor):
+        if self.model.num_codebooks == 1:
+            codebooks = [indices]
+        else:
+            codebooks = [indices[:, :, i] for i in range(self.model.num_codebooks)]
+        uniques = [codebook.unique().numel() for codebook in codebooks]
+        mean_unique = torch.tensor(uniques, dtype=torch.float).mean()
+        return mean_unique / self.model.num_codes * 100
 
     def step(self, x: MaskedTensor):
         batch_size = x.shape[0]
@@ -172,12 +211,9 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
 
         loss = masked_loss('l2', tensor1=x_hat, tensor2=x.tensor,
                            confidence=x.mask, loss_weights=self.loss_weights)
-        code_utilization = indices.unique().numel() / self.model.num_codes * 100
 
         phase = "train" if self.training else "validation"
-        # pylint: disable=fixme
-        # TODO: code_utilization is probably not correct since it overlaps codes from the different codebooks.
-        self.log(f"{phase}_code_utilization", code_utilization, batch_size=1)
+        self.log(f"{phase}_code_utilization", self.get_codebook_util(indices), batch_size=1)
         self.log(f"{phase}_loss", loss, batch_size=batch_size)
 
         return loss, x_hat

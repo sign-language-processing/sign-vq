@@ -24,6 +24,11 @@ sbatch scripts/zip_dataset.sh "$POSES_DIR" "$DATA_DIR/normalized.zip"
 sbatch scripts/train_model.sh "$DATA_DIR/normalized.zip"
 ```
 
+### Mixed Precision Training
+
+- `--dtype=float32` - Default 
+- `--dtype=bfloat16` - [Now supported](https://github.com/lucidrains/vector-quantize-pytorch/issues/114) by `vector_quantize_pytorch`
+
 ## Training Output
 
 In Weights & Biases, we can see the training progress.
@@ -70,17 +75,9 @@ See [sign_vq/data/README.md](sign_vq/data/README.md) for more details.
 - [T2M-GPT](https://github.com/Mael-zys/T2M-GPT): Generating Human Motion from Textual Descriptions with Discrete
   Representations
 
-## Recent Updates
+## Downstream Tasks
 
-- 2024-02-25: 
-  - Update `vector_quantize_pytorch` to 1.14.1
-  - Increase steps from 1e6 to 3e6
-- 2024-02-26:
-  - Hide body wrists to avoid flickering (only use hand wrists)
-- 2024-02-28:
-  - Bring wrists back
-
-- Next?
-  - Increase learning rate to 5e-3
-  - Increase transformer layers to 8
-  - Increase hidden dimension to 1024
+- [SignWriting Transcription](https://github.com/sign-language-processing/signwriting-transcription/tree/main/signwriting_transcription/pose_to_vq_to_signwriting)
+- Pose Error Correction - Given a pose sequence with missing keypoints, we can use the VQ model to fill in the missing keypoints.
+- [Fluent Pose Synthesis](https://github.com/sign-language-processing/fluent-pose-synthesis) - For pose in-betweening.
+- [SignWriting Animation](https://github.com/sign-language-processing/signwriting-animation)
