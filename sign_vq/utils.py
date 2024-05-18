@@ -17,6 +17,9 @@ def pose_from_data(pose_data: Union[MaskedTensor, Tensor]):
     if isinstance(pose_data, Tensor):
         pose_data = MaskedTensor(pose_data)
 
+    if pose_data.device != torch.device("cpu"):
+        pose_data = pose_data.to(torch.device("cpu"))
+
     # Add person dimension
     pose_data.tensor = pose_data.tensor.unsqueeze(1)
     pose_data.mask = pose_data.mask.unsqueeze(1)

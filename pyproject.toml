@@ -53,7 +53,7 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
-sign_vq = ["**/*.json"]
+sign_vq = ["**/*.json", "**/*.poseheader"]
 
 [tool.pytest.ini_options]
 addopts = "-v"

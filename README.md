@@ -48,7 +48,7 @@ poses_to_codes --data="DIRECTORY" --output="output.csv"
 
 To convert codes back to poses, use the `codes_to_poses` command.
 ```bash
-codes_to_poses --output="DIRECTORY" --data="codes_file.txt" 
+codes_to_poses --output="DIRECTORY" --codes="codes_file.txt" 
 # Or directly from codes, 5 frames example
 codes_to_poses --output="test.pose" --codes="731 63 540 261 787 63 250 100 492 351 530 307 939 63 532 61 788 55 530 60"
 ```
