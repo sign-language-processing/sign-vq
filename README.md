@@ -17,6 +17,9 @@ sbatch scripts/sync_bucket.sh "$DATA_DIR/sign-mt-poses"
 
 POSES_DIR=/shares/volk.cl.uzh/amoryo/datasets/sign-mt-poses
 
+# 2. Collect normalization data
+sbatch scripts/extract_mean_std.sh "$POSES_DIR"
+
 # 2. Creates a ZIP file of the poses after normalizing them. (about 45GB)
 sbatch scripts/zip_dataset.sh "$POSES_DIR" "$DATA_DIR/normalized.zip"
 

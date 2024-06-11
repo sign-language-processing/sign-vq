@@ -3,8 +3,10 @@ from pathlib import Path
 
 import numpy as np
 from pose_format import Pose, PoseHeader
-from pose_format.utils.generic import pose_normalization_info, correct_wrists, reduce_holistic, hands_components
+from pose_format.utils.generic import pose_normalization_info, correct_wrists, hands_components
 from pose_format.utils.reader import BufferReader
+
+CURRENT_DIR = Path(__file__).parent
 
 
 def shift_hand(pose: Pose, hand_component: str, wrist_name: str):
@@ -28,7 +30,9 @@ def unshift_hand(pose: Pose, hand_component: str):
 
 def pre_process_mediapipe(pose: Pose):
     # Remove legs, simplify face
-    pose = reduce_holistic(pose)
+    # pose = reduce_holistic(pose)
+    pose = pose.get_components(["POSE_LANDMARKS", "FACE_LANDMARKS", "LEFT_HAND_LANDMARKS", "RIGHT_HAND_LANDMARKS"])
+
     # Align hand wrists with body wrists
     correct_wrists(pose)
     # Adjust pose based on shoulder positions
@@ -45,7 +49,7 @@ def pre_process_mediapipe(pose: Pose):
 @functools.lru_cache(maxsize=1)
 def load_mean_and_std():
     import json
-    with open(Path(__file__).parent / "pose_normalization.json", "r", encoding="utf-8") as f:
+    with open(CURRENT_DIR / "pose_normalization.json", "r", encoding="utf-8") as f:
         data = json.load(f)
 
     mean, std = [], []
@@ -63,7 +67,7 @@ def load_mean_and_std():
 
 @functools.lru_cache(maxsize=1)
 def load_pose_header():
-    with open(Path(__file__).parent / "header.poseheader", "rb") as f:
+    with open(CURRENT_DIR / "header.poseheader", "rb") as f:
         return PoseHeader.read(BufferReader(f.read()))
 
 
@@ -109,8 +113,7 @@ def get_mean_and_std(directory: str):
     return mean, std
 
 
-def main():
-    poses_location = "/scratch/amoryo/poses/sign-mt-poses"
+def main(poses_location: str):
     mean, std = get_mean_and_std(poses_location)
 
     # get a single random pose
@@ -120,7 +123,7 @@ def main():
         pose = pre_process_mediapipe(pose)
 
     # store header
-    with open("header.poseheader", "wb") as f:
+    with open(CURRENT_DIR / "header.poseheader", "wb") as f:
         pose.header.write(f)
 
     i = 0
@@ -137,9 +140,19 @@ def main():
 
     import json
 
-    with open("pose_normalization.json", "w", encoding="utf-8") as f:
+    with open(CURRENT_DIR / "pose_normalization.json", "w", encoding="utf-8") as f:
         json.dump(mean_std_info, f, indent=2)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Collect normalization info')
+    parser.add_argument('--dir', type=str, help='Directory containing the pose files')
+
+    args = parser.parse_args()
+
+    if not Path(args.dir).exists():
+        raise FileNotFoundError(f"Directory {args.dir} does not exist")
+
+    main(args.dir)
