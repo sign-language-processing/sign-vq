@@ -9,7 +9,7 @@ Given a good quantizer, we can use it for downstream tasks like SignWriting tran
 # 0. Setup the environment.
 conda create --name vq python=3.11
 conda activate vq
-pip install .
+pip install ".[dev]"
 
 # 1. Downloads lots of poses from the bucket. (about 508GB)
 DATA_DIR=/scratch/amoryo/poses

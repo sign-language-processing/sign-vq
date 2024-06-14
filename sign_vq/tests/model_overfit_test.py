@@ -30,7 +30,7 @@ class ModelOverfitTestCase(unittest.TestCase):
     def model_setup(self):
         model = PoseFSQAutoEncoder(codebook_size=2 ** 4, num_codebooks=1, pose_dims=pose_dim,
                                    hidden_dim=16, nhead=2, num_layers=2, dim_feedforward=32)
-        model = AutoEncoderLightningWrapper(model, learning_rate=5e-3)
+        model = AutoEncoderLightningWrapper(model, learning_rate=5e-2, warmup_steps=1)
         model.log = MagicMock(return_value=True)
         return model
 
@@ -47,7 +47,9 @@ class ModelOverfitTestCase(unittest.TestCase):
 
         model = self.model_setup()
 
-        optimizer = model.configure_optimizers()["optimizer"]
+        optimizers = model.configure_optimizers()
+        optimizer = optimizers["optimizer"]
+        scheduler = optimizers["lr_scheduler"]["scheduler"]
 
         model.train()
         torch.set_grad_enabled(True)
@@ -55,15 +57,18 @@ class ModelOverfitTestCase(unittest.TestCase):
         # Simple training loop
         losses = []
         for _ in tqdm(range(70)):
+            optimizer.zero_grad()  # clear gradients
+
             loss = model.training_step(batch)
             loss_float = float(loss.detach())
             losses.append(loss_float)
 
-            optimizer.zero_grad()  # clear gradients
             loss.backward()  # backward
             optimizer.step()  # update parameters
+            scheduler.step()  # update learning rate
 
         print("losses", losses)
+        print("last loss", losses[-1])
 
         model.eval()
         with torch.no_grad():

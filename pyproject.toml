@@ -9,6 +9,7 @@ readme = "README.md"
 dependencies = [
     "pose-format>=0.3.2",
     "tqdm",
+    "torch",
     "vector-quantize-pytorch",
     "pytorch-lightning",
     # for inference using a huggingface hosted model
