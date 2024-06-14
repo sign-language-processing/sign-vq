@@ -1,4 +1,5 @@
 """forked from https://github.com/lucidrains/vector-quantize-pytorch/blob/master/examples/autoencoder_fsq.py"""
+import inspect
 import math
 from itertools import islice
 
@@ -166,11 +167,13 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
 
     def configure_optimizers(self):
         # Optimizer taken from https://arxiv.org/pdf/2307.09288.pdf
+        fused = 'fused' in inspect.signature(torch.optim.AdamW).parameters and 'cuda' in str(self.device)
         optimizer = torch.optim.AdamW(self.parameters(),
                                       lr=self.learning_rate,
                                       betas=(0.9, 0.95),
                                       eps=1e-5,
-                                      weight_decay=0.1)
+                                      weight_decay=0.1,
+                                      fused=fused)
 
         def warm_decay(step):
             if step < self.warmup_steps:
