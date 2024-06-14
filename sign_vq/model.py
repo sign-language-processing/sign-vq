@@ -1,6 +1,7 @@
 """forked from https://github.com/lucidrains/vector-quantize-pytorch/blob/master/examples/autoencoder_fsq.py"""
 import inspect
 import math
+import sys
 from itertools import islice
 
 import numpy as np
@@ -204,6 +205,7 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
         mean_unique = torch.tensor(uniques, dtype=torch.float).mean()
         return mean_unique / self.model.num_codes * 100
 
+    @torch.compile(disable="pytest" in sys.modules or "unittest" in sys.modules)
     def step(self, x: MaskedTensor):
         batch_size = x.shape[0]
 
