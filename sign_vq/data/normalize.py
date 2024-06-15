@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 from pose_format import Pose, PoseHeader
-from pose_format.utils.generic import pose_normalization_info, correct_wrists, hands_components
+from pose_format.utils.generic import pose_normalization_info, correct_wrists, hands_components, reduce_holistic
 from pose_format.utils.reader import BufferReader
 
 CURRENT_DIR = Path(__file__).parent
@@ -30,7 +30,7 @@ def unshift_hand(pose: Pose, hand_component: str):
 
 def pre_process_mediapipe(pose: Pose):
     # Remove legs, simplify face
-    # pose = reduce_holistic(pose)
+    pose = reduce_holistic(pose)
     pose = pose.get_components(["POSE_LANDMARKS", "FACE_LANDMARKS", "LEFT_HAND_LANDMARKS", "RIGHT_HAND_LANDMARKS"])
 
     # Align hand wrists with body wrists
