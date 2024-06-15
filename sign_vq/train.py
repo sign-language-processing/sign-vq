@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 
 from sign_vq.data.normalize import load_pose_header
-from sign_vq.dataset import ZipPoseDataset, DirectoryPoseDataset
+from sign_vq.dataset import ZipPoseDataset, DirectoryPoseDataset, PackedDataset
 from sign_vq.model import PoseFSQAutoEncoder, AutoEncoderLightningWrapper
 
 
@@ -21,7 +21,7 @@ def parse_args():
 
     # Define your arguments here
     parser.add_argument('--data-path', type=str, help='Path to training dataset')
-    parser.add_argument('--wandb-dir', type=str, help='Path to wandb directory')
+    parser.add_argument('--wandb-dir', default=None, type=str, help='Path to wandb directory')
     parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate')
     parser.add_argument('--steps', type=int, default=int(1e7), help='Number of training iterations')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
@@ -30,7 +30,8 @@ def parse_args():
     parser.add_argument('--codebook-size', type=int, default=2 ** 10,
                         choices=[2 ** 8, 2 ** 9, 2 ** 10, 2 ** 11, 2 ** 12, 2 ** 14, 2 ** 16],
                         help='Estimated number of codes in the VQ model')
-    parser.add_argument('--num-codebooks', type=int, default=8, help='Number of codebooks')
+    parser.add_argument('--num-codebooks', type=int, default=1, help='Number of codebooks')
+    parser.add_argument('--max-pose-length', type=int, default=512, help='Maximum pose length in the dataset')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--device', type=str,
                         default='gpu' if torch.cuda.is_available() else 'cpu',
@@ -85,19 +86,23 @@ def main():
     model = AutoEncoderLightningWrapper(auto_encoder, learning_rate=args.lr, loss_weights=loss_weights)
 
     if args.data_path.endswith(".zip"):
-        dataset = ZipPoseDataset(args.data_path, in_memory=True, dtype=torch_dtype)
-        validation_dataset = ZipPoseDataset(args.data_path, dtype=torch_dtype)
+        dataset = ZipPoseDataset(args.data_path, in_memory=True,
+                                 dtype=torch_dtype, max_length=args.max_pose_length)
+        training_dataset = dataset.slice(10, None)
+        validation_dataset = dataset.slice(0, 10)
         shuffle = True  # Shuffle is only slow without in_memory since the zip file is read sequentially
-        num_workers = 1  # Reading from multiple workers errors out since the zip file is read sequentially
+        num_workers = 0  # Reading from multiple workers errors out since the zip file is read sequentially
     else:
         dataset = DirectoryPoseDataset(args.data_path)
-        validation_dataset = dataset
+        training_dataset = dataset.slice(10, None)
+        validation_dataset = dataset.slice(0, 10)
         shuffle = True
         num_workers = os.cpu_count()
 
-    train_dataset = DataLoader(dataset,
+    training_iter_dataset = PackedDataset(training_dataset, max_length=args.max_pose_length, shuffle=shuffle)
+
+    train_dataset = DataLoader(training_iter_dataset,
                                batch_size=args.batch_size,
-                               shuffle=shuffle,
                                num_workers=num_workers,
                                collate_fn=zero_pad_collator)
     validation_dataset = DataLoader(validation_dataset,
@@ -108,7 +113,7 @@ def main():
 
     logger = WandbLogger(project="sign-language-vq",
                          save_dir=args.wandb_dir,
-                         log_model=False, offline=False)
+                         log_model=False, offline=args.wandb_dir is None)
     logger.log_hyperparams(auto_encoder.args_dict)
 
     # Save model arguments to file
@@ -118,17 +123,21 @@ def main():
     lr_monitor = LearningRateMonitor(logging_interval='step')
     callbacks = [lr_monitor]
 
-    precision = "bf16-true" if args.dtype == "bfloat16" else ("16-true" if args.dtype == "float16" else None)
+    precision = "bf16" if args.dtype == "bfloat16" else ("16" if args.dtype == "float16" else None)
     trainer = pl.Trainer(max_steps=args.steps,
                          logger=logger,
                          callbacks=callbacks,
-                         check_val_every_n_epoch=1,
-                         limit_val_batches=1,
+                         val_check_interval=100_000 // args.batch_size,
                          accelerator=args.device,
                          profiler="simple",
                          precision=precision,
                          gradient_clip_val=1,  # Taken from the Llamma 2 paper
                          )
+
+    # TODO: https://lightning.ai/docs/pytorch/stable/advanced/training_tricks.html requiring LightningDataModule
+    # tuner = Tuner(trainer)
+    # # Auto-scale batch size with binary search
+    # tuner.scale_batch_size(model, mode="binsearch")
 
     trainer.fit(model, train_dataloaders=train_dataset, val_dataloaders=validation_dataset)
 

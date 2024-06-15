@@ -11,11 +11,11 @@ conda create --name vq python=3.11
 conda activate vq
 pip install ".[dev]"
 
-# 1. Downloads lots of poses from the bucket. (about 508GB)
 DATA_DIR=/scratch/amoryo/poses
-sbatch scripts/sync_bucket.sh "$DATA_DIR/sign-mt-poses"
-
 POSES_DIR=/shares/volk.cl.uzh/amoryo/datasets/sign-mt-poses
+
+# 1. Downloads lots of poses from the bucket. (about 508GB)
+sbatch scripts/sync_bucket.sh "$POSES_DIR"
 
 # 2. Collect normalization data
 sbatch scripts/extract_mean_std.sh "$POSES_DIR"
@@ -25,6 +25,16 @@ sbatch scripts/zip_dataset.sh "$POSES_DIR" "$DATA_DIR/normalized.zip"
 
 # 3. Trains the model and reports to `wandb`.
 sbatch scripts/train_model.sh "$DATA_DIR/normalized.zip"
+```
+
+To set up example data:
+```bash
+DATA_DIR=example_data
+POSES_DIR=example_data/poses
+
+python -m sign_vq.data.zip_dataset --dir="$POSES_DIR" --out="$DATA_DIR/normalized.zip"
+
+python -m sign_vq.train --data-path="$DATA_DIR/normalized.zip"
 ```
 
 ### Mixed Precision Training

@@ -1,6 +1,6 @@
-from pathlib import Path
 import io
 import zipfile
+from pathlib import Path
 
 import numpy as np
 from pose_format import Pose

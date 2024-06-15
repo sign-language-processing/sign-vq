@@ -8,8 +8,9 @@ from pathlib import Path
 import numpy as np
 import psutil
 import torch
+from pose_format.torch.masked import MaskedTorch
 from pose_format.torch.masked.tensor import MaskedTensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from tqdm import tqdm
 
 
@@ -45,20 +46,15 @@ def crop_pose(tensor, max_length: int):
     return tensor
 
 
-class ZipPoseDataset(Dataset):
-    def __init__(self, zip_path: Path, max_length: int = 512, in_memory: bool = False, dtype=torch.float32):
-        print(f"ZipPoseDataset @ {zip_path} with max_length={max_length}, in_memory={in_memory}")
-
+class _ZipPoseDataset(Dataset):
+    def __init__(self, zip_obj: zipfile.ZipFile,
+                 files: list,
+                 max_length: int = 512, in_memory: bool = False, dtype=torch.float32):
         self.max_length = max_length
-
-        # pylint: disable=consider-using-with
-        self.zip = zipfile.ZipFile(zip_path, 'r')
-        self.files = self.zip.namelist()
-        print("Total files", len(self.files))
-
+        self.zip = zip_obj
+        self.files = files
         self.in_memory = in_memory
         self.dtype = dtype
-
         self.memory_files = []
 
     def __len__(self):
@@ -85,8 +81,61 @@ class ZipPoseDataset(Dataset):
 
         return crop_pose(tensor, self.max_length)
 
+    def slice(self, start, end):
+        return _ZipPoseDataset(zip_obj=self.zip, files=self.files[start:end],
+                               max_length=self.max_length, in_memory=self.in_memory, dtype=self.dtype)
+
+
+class ZipPoseDataset(_ZipPoseDataset):
+    def __init__(self, zip_path: Path, max_length: int = 512, in_memory: bool = False, dtype=torch.float32):
+        print(f"ZipPoseDataset @ {zip_path} with max_length={max_length}, in_memory={in_memory}")
+
+        # pylint: disable=consider-using-with
+        self.zip_obj = zipfile.ZipFile(zip_path, 'r')
+        files = self.zip_obj.namelist()
+        print("Total files", len(files))
+
+        super().__init__(zip_obj=self.zip_obj, files=files,
+                         max_length=max_length, in_memory=in_memory, dtype=dtype)
+
     def __del__(self):
-        self.zip.close()
+        self.zip_obj.close()
+
+
+class PackedDataset(IterableDataset):
+    def __init__(self, dataset: Dataset, max_length: int, shuffle=True):
+        self.dataset = dataset
+        self.max_length = max_length
+        self.shuffle = shuffle
+
+    def __iter__(self):
+        dataset_len = len(self.dataset)
+        datum_idx = 0
+
+        datum_shape = self.dataset[0].shape
+        padding_shape = tuple([10] + list(datum_shape)[1:])
+        padding = MaskedTensor(tensor=torch.zeros(padding_shape), mask=torch.zeros(padding_shape))
+
+        while True:
+            poses = []
+            total_length = 0
+            while total_length < self.max_length:
+                if self.shuffle:
+                    datum_idx = random.randint(0, dataset_len - 1)
+                else:
+                    datum_idx = (datum_idx + 1) % dataset_len
+
+                # Append pose
+                pose = self.dataset[datum_idx]
+                poses.append(pose)
+                total_length += len(pose)
+
+                # Append padding
+                poses.append(padding)
+                total_length += len(padding)
+
+            concatenated_pose = MaskedTorch.cat(poses, dim=0)[:self.max_length]
+            yield concatenated_pose
 
 
 class HuggingfacePoseDataset(Dataset):

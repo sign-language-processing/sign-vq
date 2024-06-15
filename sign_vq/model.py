@@ -14,6 +14,8 @@ from vector_quantize_pytorch import FSQ
 
 from sign_vq.utils import draw_original_and_predicted_pose
 
+user_command = " ".join(sys.argv)
+IS_TESTING = "pytest" in user_command or "unittest" in user_command
 
 def estimate_levels(codebook_size: int):
     # Codebook levels based on https://arxiv.org/pdf/2309.15505.pdf Section 4.1
@@ -121,6 +123,7 @@ class PoseFSQAutoEncoder(nn.Module):
         x = self.decoder(x)
         return x
 
+    @torch.compile(disable=IS_TESTING or True)
     def forward(self, batch: MaskedTensor):
         x = batch.tensor
         x = self.encoder(x)
@@ -134,6 +137,8 @@ def masked_loss(loss_type: str,
                 tensor2: torch.Tensor,
                 confidence: torch.Tensor,
                 loss_weights: torch.Tensor = None):
+    assert tensor1.dtype == tensor2.dtype, "Tensors must have the same dtype"
+    assert tensor1.dtype == torch.float32, "Tensors must be float32, or casted"
     difference = tensor1 - tensor2
 
     if loss_type == 'l1':
@@ -205,7 +210,6 @@ class AutoEncoderLightningWrapper(pl.LightningModule):
         mean_unique = torch.tensor(uniques, dtype=torch.float).mean()
         return mean_unique / self.model.num_codes * 100
 
-    @torch.compile(disable="pytest" in sys.modules or "unittest" in sys.modules)
     def step(self, x: MaskedTensor):
         batch_size = x.shape[0]
 
