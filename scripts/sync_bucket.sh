@@ -13,4 +13,5 @@ set -x # echo commands
 module load anaconda3
 source activate vq
 
-gsutil -m rsync gs://sign-mt-poses /scratch/amoryo/poses/sign-mt-poses
+poses_dir=$1
+gsutil -m rsync gs://sign-mt-poses "$poses_dir"

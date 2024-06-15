@@ -18,4 +18,3 @@ source activate vq
 
 srun python -m sign_vq.train --data-path="$1" \
   --wandb-dir="/scratch/$(whoami)/wandb/sign-vq/"
-
