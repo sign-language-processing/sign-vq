@@ -3,6 +3,7 @@ import inspect
 import math
 import sys
 from itertools import islice
+from typing import Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -124,9 +125,9 @@ class PoseFSQAutoEncoder(nn.Module):
         return x
 
     @torch.compile(disable=IS_TESTING or True)
-    def forward(self, batch: MaskedTensor):
-        x = batch.tensor
-        x = self.encoder(x)
+    def forward(self, batch: Union[MaskedTensor, Tensor]):
+        tensor = batch.tensor if isinstance(batch, MaskedTensor) else batch
+        x = self.encoder(tensor)
         x, indices = self.fsq(x)
         x = self.decoder(x)
         return x, indices

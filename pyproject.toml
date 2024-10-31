@@ -13,7 +13,7 @@ dependencies = [
     "vector-quantize-pytorch",
     "pytorch-lightning",
     # for inference using a huggingface hosted model
-    "huggingface-hub",
+    "huggingface-hub"
 ]
 
 [project.optional-dependencies]
@@ -63,3 +63,4 @@ testpaths = ["sign_vq"]
 [project.scripts]
 poses_to_codes = "sign_vq.poses_to_codes:main"
 codes_to_poses = "sign_vq.codes_to_poses:main"
+reconstruct_poses = "sign_vq.pose_reconstruction:main"

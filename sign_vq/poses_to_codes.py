@@ -73,6 +73,13 @@ def load_model(model_name: str):
 
     return model
 
+def pose_to_tensor(pose: Pose, device: torch.device):
+    tensor = torch.tensor(pose.body.data.filled(0), dtype=torch.float32, device=device)
+    # remove person dimension
+    tensor = tensor.squeeze(1)
+    # add batch dimension
+    tensor = tensor.unsqueeze(0)
+    return tensor
 
 def run_inference(model: PoseFSQAutoEncoder, poses: Iterable[tuple[str, Pose]], output_path: Path):
     print("Running inference...")
@@ -81,12 +88,7 @@ def run_inference(model: PoseFSQAutoEncoder, poses: Iterable[tuple[str, Pose]], 
         writer.writerow(["file", "fps", "length", "codes"])
 
         for file, pose in tqdm(poses):
-            tensor = torch.tensor(pose.body.data.filled(0), dtype=torch.float32, device=model.device)
-            # remove person dimension
-            tensor = tensor.squeeze(1)
-            # add batch dimension
-            tensor = tensor.unsqueeze(0)
-
+            tensor = pose_to_tensor(pose, model.device)
             codes = model.quantize(tensor)
             codes_list = torch.flatten(codes[0]).tolist()
             writer.writerow([file, pose.body.fps, len(pose.body.data), " ".join(map(str, codes_list))])
