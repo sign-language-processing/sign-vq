@@ -56,6 +56,14 @@ class ModelTestCase(unittest.TestCase):
         # 2 codebooks
         self.assertEqual((4, 3, 2), indices.shape)
 
+    def test_training_step_bfloat16_expected_loss_finite(self):
+        batch = MaskedTensor(torch.full((4, 3, *self.pose_dim), fill_value=2, dtype=torch.float))
+        model = self.model_setup()
+
+        with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+            loss = model.training_step(batch)
+        self.assertNotEqual(0, float(loss))
+        self.assertTrue(torch.isfinite(loss))
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,14 +16,16 @@ POSES_DIR=/shares/volk.cl.uzh/amoryo/datasets/sign-mt-poses
 
 # 1. Downloads lots of poses from the bucket. (about 508GB)
 sbatch scripts/sync_bucket.sh "$POSES_DIR"
+# Check the number of files (should be above 500k)
+find "$POSES_DIR" -type f -name "*.pose" | wc -l
 
 # 2. Collect normalization data
 sbatch scripts/extract_mean_std.sh "$POSES_DIR"
 
-# 2. Creates a ZIP file of the poses after normalizing them. (about 45GB)
+# 3. Creates a ZIP file of the poses after normalizing them. (about 45GB)
 sbatch scripts/zip_dataset.sh "$POSES_DIR" "$DATA_DIR/normalized.zip"
 
-# 3. Trains the model and reports to `wandb`.
+# 4. Trains the model and reports to `wandb`.
 sbatch scripts/train_model.sh "$DATA_DIR/normalized.zip"
 ```
 

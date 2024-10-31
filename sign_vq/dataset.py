@@ -29,7 +29,7 @@ def print_memory():
     print(f"Memory used in GB: RSS={rss_in_gb:.2f}, VMS={vms_in_gb:.2f}")
 
 
-def preprocess_pose(pose, dtype=torch.float32):
+def preprocess_pose(pose, dtype=torch.float16):
     tensor_data = torch.tensor(pose['data'], dtype=dtype)
     tensor_mask = torch.tensor(pose['mask'], dtype=torch.bool)
     tensor_mask = torch.logical_not(tensor_mask)  # numpy and torch have different mask conventions
@@ -49,7 +49,9 @@ def crop_pose(tensor, max_length: int):
 class _ZipPoseDataset(Dataset):
     def __init__(self, zip_obj: zipfile.ZipFile,
                  files: list,
-                 max_length: int = 512, in_memory: bool = False, dtype=torch.float32):
+                 max_length: int = 512,
+                 in_memory: bool = False,
+                 dtype=torch.float16):
         self.max_length = max_length
         self.zip = zip_obj
         self.files = files
@@ -79,7 +81,11 @@ class _ZipPoseDataset(Dataset):
                 if len(self.memory_files) % 10000 == 0:
                     print_memory()
 
-        return crop_pose(tensor, self.max_length)
+        cropped_pose = crop_pose(tensor, self.max_length)
+        if cropped_pose.dtype != self.dtype:
+            cropped_pose = MaskedTensor(tensor=cropped_pose.tensor.type(self.dtype),
+                                        mask=cropped_pose.mask)
+        return cropped_pose
 
     def slice(self, start, end):
         return _ZipPoseDataset(zip_obj=self.zip, files=self.files[start:end],

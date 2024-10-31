@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--wandb-dir', default=None, type=str, help='Path to wandb directory')
     parser.add_argument('--lr', type=float, default=3e-4, help='Learning rate')
     parser.add_argument('--steps', type=int, default=int(1e7), help='Number of training iterations')
-    parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=240, help='Batch size')
     parser.add_argument('--loss-hand-weight', type=int, default=10, help='Weight for hand reconstruction loss')
     parser.add_argument('--num-layers', type=int, default=8, help='Number of transformer layers')
     parser.add_argument('--codebook-size', type=int, default=2 ** 10,
@@ -123,7 +123,7 @@ def main():
     lr_monitor = LearningRateMonitor(logging_interval='step')
     callbacks = [lr_monitor]
 
-    precision = "bf16" if args.dtype == "bfloat16" else ("16" if args.dtype == "float16" else None)
+    precision = "bf16-mixed" if args.dtype == "bfloat16" else ("16-mixed" if args.dtype == "float16" else None)
     trainer = pl.Trainer(max_steps=args.steps,
                          logger=logger,
                          callbacks=callbacks,
