@@ -17,7 +17,9 @@ def run_inference(model: PoseFSQAutoEncoder, pose: Pose, output_path: Path, only
 
     if only_masked:
         original_pose = pose_from_data(tensor[0])
-        new_pose.body.data[pose.body.data.mask] = original_pose.body.data[pose.body.data.mask]
+        mask = pose.body.data.mask
+        original_pose.body.data[mask] = new_pose.body.data[mask]
+        new_pose = original_pose
 
     with open(output_path, "wb") as f:
         new_pose.write(f)
