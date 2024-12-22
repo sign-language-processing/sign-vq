@@ -1,6 +1,5 @@
 import argparse
 import os
-from pathlib import Path
 
 import torch
 from pose_format import Pose
@@ -10,7 +9,7 @@ from sign_vq.poses_to_codes import load_model, process_file, pose_to_tensor
 from sign_vq.utils import pose_from_data
 
 
-def run_inference(model: PoseFSQAutoEncoder, pose: Pose, output_path: Path, only_masked: bool):
+def run_inference(model: PoseFSQAutoEncoder, pose: Pose, only_masked: bool):
     tensor = pose_to_tensor(pose, model.device)
     new_tensor, _ = model(tensor)
     new_pose = pose_from_data(new_tensor[0])
@@ -21,8 +20,7 @@ def run_inference(model: PoseFSQAutoEncoder, pose: Pose, output_path: Path, only
         original_pose.body.data[mask] = new_pose.body.data[mask]
         new_pose = original_pose
 
-    with open(output_path, "wb") as f:
-        new_pose.write(f)
+    return new_pose
 
 
 def main():
@@ -42,8 +40,10 @@ def main():
     model = load_model(args.model)
 
     with torch.no_grad():
-        run_inference(model, pose, Path(args.output), args.only_masked)
+        new_pose = run_inference(model, pose, args.only_masked)
 
+    with open(args.output, "wb") as f:
+        new_pose.write(f)
 
 if __name__ == "__main__":
     main()
