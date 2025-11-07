@@ -4,3 +4,8 @@ sign_vq.egg-info/
 example_data/
 sign-language-vq/
 wandb/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
