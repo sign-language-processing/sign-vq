@@ -9,8 +9,15 @@ from sign_vq.poses_to_codes import load_model, process_file, pose_to_tensor
 from sign_vq.utils import pose_from_data
 
 
-def run_inference(model: PoseFSQAutoEncoder, pose: Pose, only_masked: bool):
+def run_inference(model: PoseFSQAutoEncoder, pose: Pose, only_masked: bool, scale_dropout=True):
     tensor = pose_to_tensor(pose, model.device)
+    if scale_dropout:
+        # calc dropout percentage
+        dropout = pose.body.data.mask.sum() / pose.body.data.mask.size
+        print(f"Dropout rate: {dropout}")
+        # scale tensor by dropout percentage
+        tensor /= (1 - dropout)
+
     new_tensor, _ = model(tensor)
     new_pose = pose_from_data(new_tensor[0])
 

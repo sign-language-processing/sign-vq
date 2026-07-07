@@ -22,31 +22,39 @@ def dropout_joints(pose: Pose, dropout_rate: float):
     confidence = pose.body.confidence
     mask = np.random.rand(*confidence.shape) > dropout_rate
     new_confidence = confidence * mask
+
     body = NumPyPoseBody(fps=pose.body.fps, data=pose.body.data.data, confidence=new_confidence)
     return Pose(header=pose.header, body=body)
 
 
-def benchmark_single_pose(model: PoseFSQAutoEncoder, original_pose: Pose, reduced_pose: Pose, only_masked=True):
-    new_pose = run_inference(model, reduced_pose, only_masked=only_masked)
+def benchmark_single_pose(model: PoseFSQAutoEncoder, original_pose: Pose, reduced_pose: Pose,
+                           only_masked=True, scale_dropout=False):
+    new_pose = run_inference(model, reduced_pose, only_masked=only_masked, scale_dropout=scale_dropout)
     new_pose = pre_process_mediapipe(new_pose)
     new_pose = normalize_mean_std(new_pose)
     return ((original_pose.body.data - new_pose.body.data) ** 2).sum()
 
 
-def benchmark_pose_reconstructions(model: PoseFSQAutoEncoder, poses: List[Pose], steps=100):
+def benchmark_pose_reconstructions(model: PoseFSQAutoEncoder, poses: List[Pose], steps=10):
     distances = defaultdict(lambda: defaultdict(list))
+
+    options = {
+        "masked-old": {"only_masked": True, "scale_dropout": False},
+        "masked-new": {"only_masked": True, "scale_dropout": True},
+        "unmasked-old": {"only_masked": False, "scale_dropout": False},
+        "unmasked-new": {"only_masked": False, "scale_dropout": True},
+    }
 
     for dropout_rate in tqdm(torch.linspace(0, 1, steps)):
         dropout_rate = float(dropout_rate.item())
         for pose in poses:
             reduced_pose = dropout_joints(pose, dropout_rate)
 
-            masked_distance = benchmark_single_pose(model, pose, reduced_pose, only_masked=True)
-            distances["masked"][dropout_rate].append(masked_distance)
-            unmasked_distance = benchmark_single_pose(model, pose, reduced_pose, only_masked=False)
-            distances["unmasked"][dropout_rate].append(unmasked_distance)
+            for k, v in options.items():
+                distance = benchmark_single_pose(model, pose, reduced_pose, **v)
+                distances[k][dropout_rate].append(distance)
 
-    # create a single chart of the sum of the distances for each dropout rate
+
     for key, values in distances.items():
         plt.plot(values.keys(), [sum(v) for v in values.values()], label=key)
 
